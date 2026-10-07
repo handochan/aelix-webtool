@@ -1,7 +1,7 @@
-"""Opt-in real-model E2E: local SearXNG fixture -> public web_fetch -> answer.
+"""Opt-in real-model E2E: fixture or keyless live search -> public fetch -> answer.
 
-This sends a small prompt to the configured Aelix model. It does not benchmark
-an actual SearXNG deployment or any paid search provider.
+This sends a small prompt to the configured Aelix model. The default uses a
+local SearXNG fixture; --search-provider duckduckgo performs a live keyless search.
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 async def run(args: argparse.Namespace) -> None:
     hits: list[dict[str, str]] = []
+    use_fixture = args.search_provider == "searxng"
 
     async def search(request: web.Request) -> web.Response:
         hits.append({"q": request.query.get("q", ""), "format": request.query.get("format", "")})
@@ -37,14 +38,17 @@ async def run(args: argparse.Namespace) -> None:
             }
         )
 
-    app = web.Application()
-    app.router.add_get("/search", search)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, "127.0.0.1", 0)
-    await site.start()
-    assert site._server is not None
-    port = site._server.sockets[0].getsockname()[1]
+    runner = None
+    port = 0
+    if use_fixture:
+        app = web.Application()
+        app.router.add_get("/search", search)
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, "127.0.0.1", 0)
+        await site.start()
+        assert site._server is not None
+        port = site._server.sockets[0].getsockname()[1]
     try:
         with tempfile.TemporaryDirectory(prefix="webtool-model-e2e-") as temp:
             root = Path(temp)
@@ -64,17 +68,31 @@ async def run(args: argparse.Namespace) -> None:
                 {
                     "AELIX_CODING_AGENT_DIR": str(agent),
                     "AELIX_DEFAULT_CATALOG": "",
-                    "AELIX_WEB_PROVIDER": "searxng",
-                    "AELIX_WEB_SEARXNG_URL": f"http://127.0.0.1:{port}",
+                    "AELIX_WEB_PROVIDER": args.search_provider,
                 }
             )
             env.pop("AELIX_WEB_OFFLINE", None)
+            for name in ("BRAVE_API_KEY", "TAVILY_API_KEY", "EXA_API_KEY", "AELIX_WEB_SEARXNG_URL"):
+                env.pop(name, None)
+            if use_fixture:
+                env["AELIX_WEB_SEARXNG_URL"] = f"http://127.0.0.1:{port}"
             prompt = (
-                "Integration check: use only web_search and web_fetch. First call web_search "
-                "with query 'AELIX_WEBTOOL_E2E_SOURCE_20261008 Python asyncio'. Then call "
-                "web_fetch on the returned official documentation URL. Finally report the exact "
-                "fixture source marker and one fact verified from the fetched page, citing its URL. "
-                "You must call both tools; do not answer from prior knowledge."
+                (
+                    "Integration check: use only web_search and web_fetch. First call web_search "
+                    "with query 'AELIX_WEBTOOL_E2E_SOURCE_20261008 Python asyncio'. Then call "
+                    "web_fetch on the returned official documentation URL. Finally report the exact "
+                    "fixture source marker and one fact verified from the fetched page, citing its URL. "
+                    "You must call both tools; do not answer from prior knowledge."
+                )
+                if use_fixture
+                else (
+                    "Integration check: use only web_search and web_fetch. Make exactly one "
+                    "web_search call with query 'Python asyncio official documentation'. "
+                    "Then use web_fetch on its returned official docs.python.org asyncio page. "
+                    "Finally state one fact verified from the page and cite its URL. "
+                    "You must call both tools. If search is blocked, stop and report the error; "
+                    "do not retry or use another provider."
+                )
             )
             command = [
                 str(args.aelix.resolve()),
@@ -132,6 +150,8 @@ async def run(args: argparse.Namespace) -> None:
                 "exit_code": process.returncode,
                 "provider": args.provider,
                 "model": args.model,
+                "search_provider": args.search_provider,
+                "search_source": "local fixture" if use_fixture else "live DuckDuckGo Lite",
                 "search_fixture_requests": hits,
                 "executed_tools": sorted(executed),
                 "tool_end_events": tool_ends,
@@ -147,7 +167,11 @@ async def run(args: argparse.Namespace) -> None:
                     indent=2,
                 )
             )
-            if process.returncode != 0 or not {"web_search", "web_fetch"} <= executed or not hits:
+            if (
+                process.returncode != 0
+                or not {"web_search", "web_fetch"} <= executed
+                or (use_fixture and not hits)
+            ):
                 raise SystemExit(
                     "FAIL: inspect saved E2E events; both tools were not successfully dispatched."
                 )
@@ -159,15 +183,13 @@ async def run(args: argparse.Namespace) -> None:
                     "FAIL: a tool execution returned an error; inspect saved E2E events."
                 )
             if (
-                "AELIX_WEBTOOL_E2E_SOURCE_20261008" not in final_answer
-                or "https://docs.python.org/3/library/asyncio.html" not in final_answer
-            ):
-                raise SystemExit("FAIL: final answer omitted the fixture evidence or source URL.")
-            print(
-                "PASS: real-model search -> fetch -> response (search source is a deterministic local fixture)"
-            )
+                use_fixture and "AELIX_WEBTOOL_E2E_SOURCE_20261008" not in final_answer
+            ) or "https://docs.python.org/3/library/asyncio.html" not in final_answer:
+                raise SystemExit("FAIL: final answer omitted the required evidence or source URL.")
+            print(f"PASS: real-model search -> fetch -> response ({summary['search_source']})")
     finally:
-        await runner.cleanup()
+        if runner is not None:
+            await runner.cleanup()
 
 
 def main() -> None:
@@ -175,6 +197,7 @@ def main() -> None:
     parser.add_argument("--aelix", type=Path, default=ROOT / ".venv/bin/aelix")
     parser.add_argument("--provider", required=True)
     parser.add_argument("--model", required=True)
+    parser.add_argument("--search-provider", choices=["searxng", "duckduckgo"], default="searxng")
     parser.add_argument("--auth-file", type=Path, default=Path.home() / ".aelix/agent/auth.json")
     parser.add_argument("--output", type=Path, default=ROOT / ".devstate/model-e2e")
     asyncio.run(run(parser.parse_args()))

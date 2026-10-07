@@ -8,6 +8,7 @@ from typing import Any
 from yarl import URL
 
 from .config import Config
+from .duckduckgo import SEARCH_URL, blocked, parse_results
 from .errors import WebToolError
 from .models import SearchRequest
 from .network import HttpClient, validate_url
@@ -45,6 +46,27 @@ async def search_provider(
     config: Config,
     http: HttpClient,
 ) -> list[dict[str, Any]]:
+    if provider == "duckduckgo":
+        query = filtered_query(request)
+        if len(query) > 499:
+            raise WebToolError(
+                "invalid_arguments",
+                "The query including domain filters exceeds DuckDuckGo's 499-character limit.",
+            )
+        params: dict[str, Any] = {"q": query}
+        if request.time_range:
+            params["df"] = {"day": "d", "week": "w", "month": "m", "year": "y"}[request.time_range]
+        try:
+            response = await http.request(
+                "GET", SEARCH_URL, params=params, headers={"Accept": "text/html"}
+            )
+        except WebToolError as exc:
+            # A keyless service's 401/403 means blocked access, not a missing key.
+            if exc.code == "authorization":
+                raise blocked() from None
+            raise
+        return parse_results(response)
+
     if provider == "brave":
         query = filtered_query(request)
         if len(query) > 600 or len(query.split()) > 75:

@@ -37,7 +37,7 @@ def main() -> None:
         {
             "name": "aelix-webtool",
             "source": f"git+https://github.com/handochan/aelix-webtool.git@{args.revision}",
-            "description": "Web search with Brave, Tavily, Exa or SearXNG, and bounded public-page reading.",
+            "description": "Keyless DuckDuckGo or configured Brave, Tavily, Exa or SearXNG search, and bounded public-page reading.",
             "version": "0.1.0",
             "homepage": "https://github.com/handochan/aelix-webtool",
         }

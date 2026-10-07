@@ -22,6 +22,19 @@ Compatibility was checked against Aelix source at the revision recorded in
 
 ## Configure search
 
+With no keys or provider settings, `web_search` uses **DuckDuckGo Lite**.
+It needs internet access, but no account, API key or self-hosted server.
+To select it explicitly when other configured providers are unavailable:
+
+```bash
+export AELIX_WEB_PROVIDER=duckduckgo
+aelix
+```
+
+This uses the public Lite search page, whose format and availability can change.
+CAPTCHA/block responses are reported as errors; the extension does not solve
+challenges, rotate identities or retry through other services.
+
 These are search-service API keys issued by Brave, Tavily or Exa. Configure
 the key for the provider you use. They are separate from Aelix's conversational
 model credentials; this extension does not reuse model API keys or OAuth logins
@@ -38,13 +51,16 @@ aelix
 
 | Provider | Configuration | Recency behavior |
 | --- | --- | --- |
+| DuckDuckGo | None; optionally `AELIX_WEB_PROVIDER=duckduckgo` | day/week/month/year hints on the public Lite page; best-effort. |
 | Brave | `BRAVE_API_KEY` | Page-age filter: day/week/month/year. |
 | Tavily | `TAVILY_API_KEY` | Provider time-range filter: day/week/month/year. |
 | Exa | `EXA_API_KEY` | Published-date lower bound: 1/7/30/365 days. |
 | SearXNG | `AELIX_WEB_SEARXNG_URL` | day/month/year; week returns an explicit unsupported-filter error. Instance engines may handle filters differently. |
 
 `AELIX_WEB_PROVIDER=auto` (the default) selects the first configured provider in
-this order: SearXNG, Brave, Tavily, Exa. It sends one request to that provider.
+this order: SearXNG, Brave, Tavily, Exa, then keyless DuckDuckGo. It sends one
+request to that provider. If a configured provider is unavailable, select
+`duckduckgo` explicitly to search without using its key.
 Failures do not automatically cause retries or calls to other services. Choose
 an explicit provider to make routing independent of other exported keys.
 No search configuration is needed for `web_fetch`.
@@ -58,8 +74,8 @@ export AELIX_WEB_PROVIDER=searxng
 
 The SearXNG instance must enable JSON output. Its exact configured endpoint can
 be private; search API redirects remain refused. This does not grant the fetch
-tool access to private networks. No public keyless endpoint is contacted by
-default. `.env` files are **not** automatically read.
+tool access to private networks. The default when nothing is configured is the
+public DuckDuckGo Lite endpoint. `.env` files are **not** automatically read.
 
 `AELIX_WEB_OFFLINE=1` disables both tools. Aelix's general `--offline` controls
 its own maintenance/catalog traffic; it does not sandbox extensions or their
@@ -130,6 +146,7 @@ The CLI works independently of a running model:
 
 ```bash
 uv run --no-sync aelix-webtool status
+uv run --no-sync aelix-webtool search 'Python asyncio official documentation' --provider duckduckgo
 uv run --no-sync aelix-webtool search 'Aelix extension documentation' --provider brave
 uv run --no-sync aelix-webtool fetch https://docs.python.org/3/library/asyncio.html
 ```
@@ -140,5 +157,5 @@ isolated environment. Mocked provider responses, actual HTTP fixtures,
 public-page live fetches and real-model E2E are recorded separately in
 [verification](docs/verification.md).
 
-See [design](docs/decisions/0001-web-tool-contract.md), [investigated references](docs/references.md)
+See [design](docs/decisions/0001-web-tool-contract.md), [keyless search decision](docs/decisions/0002-keyless-duckduckgo-search.md), [investigated references](docs/references.md)
 and [official registration procedure](docs/registration.md).

@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 from .errors import WebToolError
 
-PROVIDERS = ("searxng", "brave", "tavily", "exa")
+PROVIDERS = ("searxng", "brave", "tavily", "exa", "duckduckgo")
 KEY_ENV = {"brave": "BRAVE_API_KEY", "tavily": "TAVILY_API_KEY", "exa": "EXA_API_KEY"}
 
 
@@ -30,7 +30,11 @@ class Config:
         )
 
     def available(self) -> list[str]:
-        return [p for p in PROVIDERS if (self.searxng_url if p == "searxng" else self.keys.get(p))]
+        return [
+            p
+            for p in PROVIDERS
+            if p == "duckduckgo" or (self.searxng_url if p == "searxng" else self.keys.get(p))
+        ]
 
     def select(self, requested: str = "auto") -> str:
         if self.offline:
@@ -38,17 +42,14 @@ class Config:
         provider = self.provider if requested == "auto" else requested
         if provider not in (*PROVIDERS, "auto"):
             raise WebToolError(
-                "configuration", "AELIX_WEB_PROVIDER must be auto, searxng, brave, tavily or exa."
+                "configuration",
+                "AELIX_WEB_PROVIDER must be auto, searxng, brave, tavily, exa or duckduckgo.",
             )
         available = self.available()
         if provider == "auto":
-            if available:
-                return available[0]
-            raise WebToolError(
-                "not_configured",
-                "Set BRAVE_API_KEY, TAVILY_API_KEY, EXA_API_KEY or AELIX_WEB_SEARXNG_URL. "
-                "No search request was sent.",
-            )
+            # DuckDuckGo is selectable without keys or an operator endpoint.
+            # This is selection before I/O, never failover after an error.
+            return available[0]
         if provider not in available:
             name = "AELIX_WEB_SEARXNG_URL" if provider == "searxng" else KEY_ENV[provider]
             raise WebToolError(

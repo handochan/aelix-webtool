@@ -242,7 +242,7 @@ class WebService:
             selected = exc.message
         return (
             f"Aelix Web Tools\nConfigured provider: {self.config.provider}\n"
-            f"Available providers: {available}\nSelected: {selected}\n"
+            f"Selectable providers: {available}\nSelected: {selected}\n"
             "Tools: web_search, web_fetch\n"
             "Routing: one selected provider per call; no automatic fallback.\n"
             "Fetch: public HTTP(S), ports 80/443, static text only; 2 MB / 25 seconds."

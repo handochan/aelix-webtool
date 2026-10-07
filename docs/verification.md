@@ -1,9 +1,49 @@
-# First implementation verification
+# Web tool verification
 
 Date: 2026-10-08 (Asia/Seoul)
 Status: Local implementation and validation complete; public publication and
 catalog registration pending. This record does not claim search quality or
 actual GitHub CI success.
+
+## Keyless search follow-up (ADR-0002)
+
+The latest implementation adds keyless DuckDuckGo Lite. With no provider keys
+or endpoint configuration, `auto` selects it. Explicit DuckDuckGo selection
+also works with unavailable keyed providers still configured; failed requests
+do not cause implicit failover. No new runtime dependency was added.
+
+| Executed scope | Result |
+| --- | --- |
+| Python 3.11.15, installed wheel, real host integration, HTTP boundary tests | 128 passed; 0 failures/errors/skipped. |
+| Python 3.12.13, installed wheel, real host integration, HTTP boundary tests | 128 passed; 0 failures/errors/skipped. |
+| Python 3.13.13, installed wheel, real host integration, HTTP boundary tests | 128 passed; 0 failures/errors/skipped. |
+| Lint, format and types | Passed; zero type errors. |
+| Fresh wheel and isolated Aelix host | `BOUND`, automatic discovery and actual tool dispatch passed. |
+| Zero-configuration live keyless search | DuckDuckGo Lite returned three sources for `Python asyncio official documentation`; the returned official Python URL was actually fetched. |
+| Python 3.13 real-model E2E with live search | Existing `openai-codex/gpt-5.6-luna` model login; exit 0; exactly one `web_search` and one `web_fetch` completed successfully; final answer cites the fetched documentation URL. No search fixture, API search keys or SearXNG endpoint was used; stderr was empty. |
+
+All three test suites were run with `-W error::ResourceWarning` against the
+actual installed wheel. The additional 20 deterministic tests failed against
+the previous implementation, then passed after the new adapter was added.
+They cover empty configuration, explicit selection over configured keys,
+Unicode, date/domain hints, direct/wrapped sources, advertisement/unsafe-link
+omission, missing-snippet ownership, malformed/no-result/challenge responses,
+query bounds and strict single-request behavior.
+
+A discovery probe of DuckDuckGo HTML returned HTTP 202 with a challenge. The
+fixed Lite endpoint returned normal results. The adapter reports challenges
+as `provider_blocked`, never as successful empty results, and performs no
+challenge bypass, endpoint rotation or automatic retry. This is a public-page
+integration whose availability and markup may change, rather than a versioned
+API guarantee.
+
+Raw evidence is under `.devstate/duckduckgo-*` and
+`.devstate/model-e2e-duckduckgo/` (gitignored). The model E2E removes all three
+search API keys and the SearXNG endpoint from its child environment. Its copied
+model-auth file is private and temporary, and is not sent to DuckDuckGo.
+
+The original implementation's checks below are retained as historical evidence;
+the current suite has 128 tests per Python version, rather than 108.
 
 ## Environment
 
