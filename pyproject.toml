@@ -4,14 +4,20 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aelix-webtool"
-version = "0.1.0"
+version = "0.2.0"
 description = "Provider-independent web search and public-page reading for Aelix."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{ name = "Aelix Contributors" }]
-dependencies = ["aiohttp>=3.12,<4", "beautifulsoup4>=4.12,<5", "markdownify>=1.1,<2", "yarl>=1.18,<2"]
+dependencies = [
+    "aiohttp>=3.12,<4",
+    "beautifulsoup4>=4.12,<5",
+    "markdownify>=1.1,<2",
+    "trafilatura>=2.3.1,<3",
+    "yarl>=1.18,<2",
+]
 
 # Aelix is supplied by the host. During beta its PyPI distributions are
 # placeholders, so a dependency on them would break extension installation.

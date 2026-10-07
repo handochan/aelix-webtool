@@ -106,19 +106,101 @@ class FetchRequest:
     url: str
     max_chars: int = 8000
     offset: int = 0
+    refresh: bool = False
 
     @classmethod
     def from_args(cls, args: dict[str, Any]) -> FetchRequest:
-        if args.keys() - {"url", "max_chars", "offset"}:
+        if args.keys() - {"url", "max_chars", "offset", "refresh"}:
             raise WebToolError("invalid_arguments", "Unknown fetch parameter.")
         url = args.get("url")
         if not isinstance(url, str) or not url or len(url) > 2048:
             raise WebToolError("invalid_arguments", "url must contain 1 to 2048 characters.")
+        if type(args.get("refresh", False)) is not bool:
+            raise WebToolError("invalid_arguments", "refresh must be a boolean.")
         return cls(
             url=url,
             max_chars=bounded_int(args, "max_chars", 8000, 100, 12000),
             offset=bounded_int(args, "offset", 0, 0, 2_000_000),
+            refresh=args.get("refresh", False),
         )
+
+
+@dataclass(frozen=True)
+class ReadRequest:
+    snapshot_id: str
+    offset: int = 0
+    max_chars: int = 8000
+
+    @classmethod
+    def from_args(cls, args: dict[str, Any]) -> ReadRequest:
+        if args.keys() - {"snapshot_id", "offset", "max_chars"}:
+            raise WebToolError("invalid_arguments", "Unknown snapshot-read parameter.")
+        key = args.get("snapshot_id")
+        if not isinstance(key, str) or not re.fullmatch(r"snap-[A-Za-z0-9_-]{24}", key):
+            raise WebToolError("invalid_arguments", "Use the snapshot_id returned by web_fetch.")
+        return cls(
+            key,
+            bounded_int(args, "offset", 0, 0, 2_000_000),
+            bounded_int(args, "max_chars", 8000, 100, 12000),
+        )
+
+
+@dataclass(frozen=True)
+class FindRequest:
+    snapshot_id: str
+    query: str
+    case_sensitive: bool = False
+    max_matches: int = 10
+    context_chars: int = 160
+
+    @classmethod
+    def from_args(cls, args: dict[str, Any]) -> FindRequest:
+        if args.keys() - {"snapshot_id", "query", "case_sensitive", "max_matches", "context_chars"}:
+            raise WebToolError("invalid_arguments", "Unknown snapshot-find parameter.")
+        key = ReadRequest.from_args({"snapshot_id": args.get("snapshot_id")}).snapshot_id
+        query = args.get("query")
+        if (
+            not isinstance(query, str)
+            or not query.strip()
+            or len(query) > 200
+            or any(ord(c) < 32 for c in query)
+        ):
+            raise WebToolError(
+                "invalid_arguments", "query must contain 1 to 200 single-line characters."
+            )
+        if type(args.get("case_sensitive", False)) is not bool:
+            raise WebToolError("invalid_arguments", "case_sensitive must be a boolean.")
+        return cls(
+            key,
+            query,
+            args.get("case_sensitive", False),
+            bounded_int(args, "max_matches", 10, 1, 20),
+            bounded_int(args, "context_chars", 160, 0, 500),
+        )
+
+
+def search_requests(args: dict[str, Any]) -> list[SearchRequest]:
+    if "queries" not in args:
+        return [SearchRequest.from_args(args)]
+    if "query" in args:
+        raise WebToolError("invalid_arguments", "Supply query or queries, not both.")
+    values = args["queries"]
+    if not isinstance(values, list) or not 1 <= len(values) <= 5:
+        raise WebToolError("invalid_arguments", "queries must contain 1 to 5 queries.")
+    common = {k: v for k, v in args.items() if k != "queries"}
+    return [SearchRequest.from_args({**common, "query": value}) for value in values]
+
+
+def fetch_requests(args: dict[str, Any]) -> list[FetchRequest]:
+    if "urls" not in args:
+        return [FetchRequest.from_args(args)]
+    if "url" in args:
+        raise WebToolError("invalid_arguments", "Supply url or urls, not both.")
+    values = args["urls"]
+    if not isinstance(values, list) or not 1 <= len(values) <= 5:
+        raise WebToolError("invalid_arguments", "urls must contain 1 to 5 URLs.")
+    common = {k: v for k, v in args.items() if k != "urls"}
+    return [FetchRequest.from_args({**common, "url": value}) for value in values]
 
 
 @dataclass(frozen=True)
