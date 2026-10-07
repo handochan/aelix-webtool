@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import gzip
 import socket
+import zlib
 
 import pytest
 import pytest_asyncio
@@ -163,7 +165,38 @@ async def local_server():
         if request.path == "/pdf":
             return web.Response(body=b"%PDF fake", content_type="application/pdf")
         if request.path == "/compressed":
-            return web.Response(body=b"compressed", headers={"Content-Encoding": "gzip"})
+            return web.Response(
+                body=b"compressed",
+                headers={"Content-Encoding": "gzip", "Content-Type": "text/plain"},
+            )
+        if request.path in {
+            "/gzip",
+            "/deflate",
+            "/raw-deflate",
+            "/bomb",
+            "/truncated-gzip",
+            "/joined-gzip",
+        }:
+            text = "장비 documentation " * 50
+            data = text.encode()
+            encoding = "gzip"
+            if request.path == "/bomb":
+                data = b"x" * 2_000_001
+            if request.path == "/deflate":
+                encoding, payload = "deflate", zlib.compress(data)
+            elif request.path == "/raw-deflate":
+                compressor = zlib.compressobj(wbits=-zlib.MAX_WBITS)
+                encoding, payload = "deflate", compressor.compress(data) + compressor.flush()
+            else:
+                payload = gzip.compress(data)
+                if request.path == "/truncated-gzip":
+                    payload = payload[:-8]
+                if request.path == "/joined-gzip":
+                    payload += gzip.compress(b"second")
+            return web.Response(
+                body=payload,
+                headers={"Content-Encoding": encoding, "Content-Type": "text/plain; charset=utf-8"},
+            )
         if request.path == "/429":
             return web.Response(status=429, text="SECRET-KEY from upstream")
         if request.path == "/search":
@@ -217,7 +250,7 @@ async def test_real_http_redirect_and_headers(public_fixture, monkeypatch):
     assert response.url == base + "/page"
     assert "안녕하세요" in response.body.decode()
     assert [r[0] for r in hits] == ["/redirect", "/page"]
-    assert hits[0][1]["Accept-Encoding"] == "identity"
+    assert hits[0][1]["Accept-Encoding"] == "gzip, deflate"
     assert "Cookie" not in hits[0][1]
 
 
@@ -261,7 +294,10 @@ async def test_search_api_never_follows_even_same_origin_redirect(public_fixture
         ("/large", "response_too_large"),
         ("/stream", "response_too_large"),
         ("/pdf", "unsupported_content"),
-        ("/compressed", "unsupported_encoding"),
+        ("/compressed", "invalid_response"),
+        ("/bomb", "response_too_large"),
+        ("/truncated-gzip", "invalid_response"),
+        ("/joined-gzip", "invalid_response"),
         ("/loop", "redirect_limit"),
         ("/429", "rate_limit"),
     ],
@@ -282,6 +318,33 @@ async def test_total_deadline_includes_redirect_chain(public_fixture):
         await HttpClient(timeout=0.22).request("GET", base + "/slow1", fetch=True)
     assert exc.value.code == "timeout"
     assert len(hits) == 2
+
+
+@pytest.mark.parametrize("path", ["/gzip", "/deflate", "/raw-deflate"])
+async def test_real_http_decodes_supported_compression(public_fixture, path):
+    base, _ = public_fixture
+    result = await HttpClient().request("GET", base + path, fetch=True)
+    assert result.body.decode() == "장비 documentation " * 50
+
+
+def test_decoder_handles_split_header_and_bounds_before_allocation():
+    from aelix_webtool.compression import BodyDecoder
+
+    payload = zlib.compress("Unicode 장비".encode())
+    decoder = BodyDecoder("deflate", 1000)
+    result = b"".join(decoder.feed(payload[i : i + 1]) for i in range(len(payload)))
+    decoder.finish()
+    assert result.decode() == "Unicode 장비"
+    with pytest.raises(WebToolError) as exc:
+        BodyDecoder("gzip", 1000).feed(gzip.compress(b"a" * 1_000_000))
+    assert exc.value.code == "response_too_large"
+
+
+def test_retry_after_is_exposed_without_error_body():
+    with pytest.raises(WebToolError) as exc:
+        check_status(429, {"Retry-After": "5", "Authorization": "SECRET"})
+    assert exc.value.retry_after_seconds == 5
+    assert "SECRET" not in str(exc.value.to_dict())
 
 
 async def test_parent_cancellation_closes_http_resources(public_fixture):

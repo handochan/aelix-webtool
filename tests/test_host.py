@@ -23,7 +23,7 @@ async def test_actual_host_loader_registers_tools_and_command_without_network(mo
     result = await load_extensions([setup])
     assert not result.errors
     extension = result.extensions[0]
-    assert set(extension.tools) == {"web_search", "web_fetch"}
+    assert set(extension.tools) == {"web_search", "web_fetch", "web_read", "web_find"}
     assert set(extension.commands) == {"web"}
     assert "Aelix Web Tools" in extension.commands["web"].handler("status", None)
 
@@ -74,3 +74,34 @@ async def test_real_host_abort_signal_is_preserved():
             .tools["web_fetch"]
             .execute({"url": "https://example.com"}, ToolExecutionContext(signal=signal))
         )
+
+
+async def test_host_fetch_read_find_share_one_store_and_session_start_clears_it(monkeypatch):
+    calls = []
+
+    async def response(_self, *args, **kwargs):
+        calls.append(args)
+        return HttpResponse(
+            "https://example.com/guide",
+            200,
+            "text/plain",
+            "utf-8",
+            "첫 줄\nTimeout = 10\nSource evidence.".encode(),
+        )
+
+    monkeypatch.setattr("aelix_webtool.network.HttpClient.request", response)
+    extension = (await load_extensions([setup])).extensions[0]
+    context = ToolExecutionContext()
+    fetched = await extension.tools["web_fetch"].execute(
+        {"url": "https://example.com/guide"}, context
+    )
+    key = fetched.details["snapshot_id"]
+    read = await extension.tools["web_read"].execute({"snapshot_id": key}, context)
+    found = await extension.tools["web_find"].execute(
+        {"snapshot_id": key, "query": "timeout"}, context
+    )
+    assert not read.is_error and found.details["total_matches"] == 1
+    assert found.details["matches"][0]["line_start"] == 2 and len(calls) == 1
+    extension.handlers["session_start"][0]({}, None)
+    missing = await extension.tools["web_read"].execute({"snapshot_id": key}, context)
+    assert missing.is_error and missing.details["error"]["code"] == "snapshot_not_found"

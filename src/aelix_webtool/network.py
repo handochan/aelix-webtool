@@ -7,7 +7,10 @@ import ipaddress
 import json
 import re
 import socket
+from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from typing import Any
 from urllib.parse import urldefrag
 
@@ -16,6 +19,7 @@ from aiohttp.abc import AbstractResolver, ResolveResult
 from aiohttp.resolver import ThreadedResolver
 from yarl import URL
 
+from .compression import BodyDecoder
 from .errors import WebToolError
 
 REDIRECTS = {301, 302, 303, 307, 308}
@@ -25,6 +29,9 @@ FETCH_TYPES = {
     "text/plain",
     "text/markdown",
     "application/json",
+    "application/xml",
+    "text/xml",
+    "text/csv",
 }
 
 
@@ -88,7 +95,10 @@ def validate_url(value: str, *, allow_private: bool = False) -> str:
             raise WebToolError(
                 "blocked_url", "Local, private and special-use addresses are blocked."
             )
-    return urldefrag(str(url))[0]
+    normalized = urldefrag(str(url))[0]
+    if len(normalized) > 2048:
+        raise WebToolError("invalid_url", "The normalized URL exceeds 2048 characters.")
+    return normalized
 
 
 class PublicResolver(AbstractResolver):
@@ -121,6 +131,7 @@ class HttpResponse:
     content_type: str
     charset: str
     body: bytes
+    challenged: bool = False
 
     def json(self) -> dict[str, Any]:
         try:
@@ -136,7 +147,22 @@ class HttpResponse:
         return value
 
 
-def check_status(status: int) -> None:
+def retry_after(headers: Mapping[str, str] | None) -> float | None:
+    value = headers.get("Retry-After", "") if headers else ""
+    if not value or len(value) > 100:
+        return None
+    try:
+        if value.strip().isdigit():
+            return float(min(int(value.strip()), 86400))
+        date = parsedate_to_datetime(value)
+        if date.tzinfo is None:
+            date = date.replace(tzinfo=UTC)
+        return max(0.0, min(86400.0, (date - datetime.now(UTC)).total_seconds()))
+    except (ValueError, TypeError, OverflowError):
+        return None
+
+
+def check_status(status: int, headers: Mapping[str, str] | None = None) -> None:
     if 200 <= status < 300:
         return
     if status in {401, 403}:
@@ -149,12 +175,18 @@ def check_status(status: int) -> None:
             "rate_limit",
             "The server rate limit was reached (HTTP 429). Try again later.",
             retryable=True,
+            retry_after_seconds=retry_after(headers),
         )
     if status in {402, 432, 433}:
         raise WebToolError(
             "usage_limit", f"The provider's usage or billing limit was reached (HTTP {status})."
         )
-    raise WebToolError("http_error", f"The server returned HTTP {status}.", retryable=status >= 500)
+    raise WebToolError(
+        "http_error",
+        f"The server returned HTTP {status}.",
+        retryable=status >= 500,
+        retry_after_seconds=retry_after(headers) if status >= 500 else None,
+    )
 
 
 class HttpClient:
@@ -181,7 +213,7 @@ class HttpClient:
         connector = aiohttp.TCPConnector(resolver=resolver, use_dns_cache=False, limit=4)
         request_headers = {
             "User-Agent": "aelix-webtool/0.1.0",
-            "Accept-Encoding": "identity",
+            "Accept-Encoding": "gzip, deflate",
             "Accept": "text/html, text/plain, text/markdown, application/json"
             if fetch
             else "application/json",
@@ -223,15 +255,11 @@ class HttpClient:
                             current = validate_url(str(URL(current).join(URL(location))))
                             params = None
                             continue
-                        check_status(response.status)
-                        if response.headers.get("Content-Encoding", "identity").lower() not in {
-                            "",
-                            "identity",
-                        }:
-                            raise WebToolError(
-                                "unsupported_encoding",
-                                "The server ignored the request for uncompressed content.",
-                            )
+                        check_status(response.status, response.headers)
+                        challenged = response.headers.get("cf-mitigated", "").lower() == "challenge"
+                        decoder = BodyDecoder(
+                            response.headers.get("Content-Encoding", "identity"), limit
+                        )
                         content_type = response.content_type.lower()
                         if fetch and content_type not in FETCH_TYPES:
                             raise WebToolError(
@@ -244,19 +272,23 @@ class HttpClient:
                                 f"The response exceeds the {limit}-byte limit.",
                             )
                         body = bytearray()
+                        wire_bytes = 0
                         async for chunk in response.content.iter_chunked(16384):
-                            body.extend(chunk)
-                            if len(body) > limit:
+                            wire_bytes += len(chunk)
+                            if wire_bytes > limit:
                                 raise WebToolError(
                                     "response_too_large",
-                                    f"The response exceeds the {limit}-byte limit.",
+                                    f"The encoded response exceeds the {limit}-byte limit.",
                                 )
+                            body.extend(decoder.feed(chunk))
+                        decoder.finish()
                         return HttpResponse(
                             url=str(response.url),
                             status=response.status,
                             content_type=content_type,
                             charset=response.charset or "utf-8",
                             body=bytes(body),
+                            challenged=challenged,
                         )
                 raise WebToolError("redirect_limit", "Too many redirects.")
         except TimeoutError:

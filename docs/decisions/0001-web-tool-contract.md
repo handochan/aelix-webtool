@@ -3,6 +3,7 @@
 Status: Accepted for the first implementation
 Date: 2026-10-08 (Asia/Seoul)
 Amended by: [ADR-0002](0002-keyless-duckduckgo-search.md) for keyless search and `auto` selection.
+Amended by: [ADR-0003](0003-core-web-investigation.md) for v0.2 HTTP reading, snapshots, batches and explicit resilience settings.
 
 ## Context
 

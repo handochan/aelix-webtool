@@ -18,6 +18,8 @@ class Config:
     keys: Mapping[str, str] = field(default_factory=dict, repr=False)
     searxng_url: str = field(default="", repr=False)
     offline: bool = False
+    retries: int = 0
+    fallback_providers: tuple[str, ...] = ()
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Config:
@@ -27,6 +29,14 @@ class Config:
             keys={p: env[k].strip() for p, k in KEY_ENV.items() if env.get(k, "").strip()},
             searxng_url=env.get("AELIX_WEB_SEARXNG_URL", "").strip(),
             offline=env.get("AELIX_WEB_OFFLINE", "").strip().lower() in {"1", "true", "yes"},
+            retries=int(env.get("AELIX_WEB_RETRIES", "0").strip())
+            if env.get("AELIX_WEB_RETRIES", "0").strip() in {"0", "1"}
+            else -1,
+            fallback_providers=tuple(
+                v.strip().lower()
+                for v in env.get("AELIX_WEB_FALLBACK_PROVIDERS", "").split(",")
+                if v.strip()
+            ),
         )
 
     def available(self) -> list[str]:
@@ -56,3 +66,23 @@ class Config:
                 "not_configured", f"Set {name} to use {provider}. No search request was sent."
             )
         return provider
+
+    def route(self, requested: str = "auto") -> tuple[str, ...]:
+        primary = self.select(requested)
+        if type(self.retries) is not int or self.retries not in {0, 1}:
+            raise WebToolError("configuration", "AELIX_WEB_RETRIES must be 0 or 1.")
+        if requested != "auto":
+            return (primary,)
+        fallbacks = self.fallback_providers
+        if len(fallbacks) > 2 or len(set(fallbacks)) != len(fallbacks) or primary in fallbacks:
+            raise WebToolError(
+                "configuration",
+                "Specify at most two unique fallback providers, excluding the primary provider.",
+            )
+        for provider in fallbacks:
+            if provider not in PROVIDERS:
+                raise WebToolError(
+                    "configuration", "Unknown operator-configured fallback provider."
+                )
+            self.select(provider)
+        return (primary, *fallbacks)
