@@ -1,6 +1,7 @@
 # ADR-0002: Keyless DuckDuckGo Lite search
 
 Status: Accepted
+Amended by: [ADR-0003](0003-core-web-investigation.md) when retries/fallback are explicitly configured; challenge bypass remains prohibited.
 Date: 2026-10-08 (Asia/Seoul)
 Amends: ADR-0001 search-provider selection and its no-default-keyless-endpoint decision.
 
