@@ -1,9 +1,10 @@
-# Web tool verification
+# Local web tool verification before publication
 
 Date: 2026-10-08 (Asia/Seoul)
-Status: Local implementation and validation complete; public publication and
-catalog registration pending. This record does not claim search quality or
-actual GitHub CI success.
+Status at recording: Local implementation and validation complete; publication
+and catalog submission had not run. This is the pre-publication evidence, not
+a current catalog-state or GitHub CI assertion. Published registration and CI
+results are recorded separately in the registration PR and repository history.
 
 ## Keyless search follow-up (ADR-0002)
 

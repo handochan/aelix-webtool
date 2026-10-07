@@ -1,8 +1,10 @@
 # Aelix Web Tools
 
 An Aelix extension providing `web_search`, `web_fetch` and `/web`.
-This first implementation is being prepared for the official Aelix catalog;
-it is not yet published or listed.
+Source: [handochan/aelix-webtool](https://github.com/handochan/aelix-webtool).
+The [official catalog](https://handochan.github.io/aelix-marketplace/catalog.json)
+is the authority for the published installation source; see
+[registration](docs/registration.md) for its review and verification procedure.
 
 ## Install into Aelix
 

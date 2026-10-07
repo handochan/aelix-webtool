@@ -1,6 +1,9 @@
 # Official extension registration
 
-Status: Prepared locally; public publication and catalog registration are pending.
+Source repository: [handochan/aelix-webtool](https://github.com/handochan/aelix-webtool).
+The current listing and pinned installation source are recorded in the
+[published official catalog](https://handochan.github.io/aelix-marketplace/catalog.json).
+Catalog changes go through a reviewed PR and the checks described below.
 
 The official catalog is [handochan/aelix-marketplace](https://github.com/handochan/aelix-marketplace).
 Its public listing gate requires an actual reachable git/PyPI source, an
