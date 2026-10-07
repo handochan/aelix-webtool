@@ -28,7 +28,7 @@ in a throwaway venv. It runs metadata-only `extension verify`, automatically
 loads the installed entry point and dispatches the fetch tool through real host
 types. It does not install into or change the user's existing Aelix tool env.
 
-Paid search adapters also need a live keyed call before their integration is
+Keyed search adapters also need a live keyed call before their integration is
 described as live verified. A model-free public fetch and deterministic local
 SearXNG test are separate evidence. A real-model tool call is yet another gate.
 

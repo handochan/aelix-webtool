@@ -8,7 +8,8 @@ actual GitHub CI success.
 ## Environment
 
 - macOS, Apple Silicon.
-- Python 3.12.13 (primary) and Python 3.11.15 (minimum-version check).
+- Python 3.12.13 (primary), Python 3.11.15 (minimum-version check) and
+  Python 3.13.13 (requested compatibility follow-up).
 - uv 0.11.19; locked extension dependencies: aiohttp 3.14.4,
   beautifulsoup4 4.15.0, markdownify 1.2.3, yarl 1.25.1.
 - Host: Aelix `0.1.0b2`, source revision
@@ -22,11 +23,15 @@ actual GitHub CI success.
 | --- | --- | --- |
 | Deterministic contracts and actual HTTP boundaries, Python 3.12 | `uv run --no-sync pytest -q -W error::ResourceWarning` | 108 passed; no host module skipped. |
 | Minimum Python version with independently installed extension/host | Python 3.11.15, actual host packages installed; `python -m pytest -q -W error::ResourceWarning` | 108 passed. |
+| Python 3.13 compatibility with installed wheel and pinned host | Python 3.13.13, dependencies exported from `uv.lock`, non-editable extension wheel and actual host packages installed; `python -m pytest -q -W error::ResourceWarning` | 108 passed; 0 failures, 0 errors, 0 skipped. |
+| Python 3.13 static checks | `pyright --pythonpath <python313> --pythonversion 3.13`, `ruff check .`, `ruff format --check .` | Passed; zero type errors. |
+| Python 3.13 installed wheel / live HTTPS | `python313 scripts/verify_host.py --aelix-source <pinned snapshot>`; public Python documentation fetch | Fresh wheel `BOUND`; automatic discovery and host dispatch passed; real DNS/TLS and extraction observed. |
 | Lint, formatting, types | `ruff check .`, `ruff format --check .`, `pyright` | Passed; zero type errors. |
 | Source/wheel packaging | `uv build` | Built sdist, then wheel from that sdist. |
 | Fresh installed wheel / real host | `python scripts/verify_host.py --aelix-source <host checkout>` | `BOUND aelix-webtool`, exactly one installed entry point; automatic discovery exposes `web_search`, `web_fetch`, `/web`; actual host-type dispatch rejects a private fetch before I/O. |
 | Model-free public fetch | CLI fetch of `https://example.com` and `https://docs.python.org/3/library/asyncio.html` | Real HTTPS, DNS/TLS, extraction, source URL and truncation metadata observed. |
 | Real-model tool flow, installed wheel | `python scripts/model_e2e.py --provider openai-codex --model gpt-5.6-luna` | Exit 0; one fixture search request, both successful tool-end events, real public-document fetch, final answer contains the fixture marker and documentation URL. |
+| Python 3.13 real-model tool flow, installed wheel | `python313 scripts/model_e2e.py --aelix <python313-env>/bin/aelix --provider openai-codex --model gpt-5.6-luna` | Exit 0; `web_search` and `web_fetch` succeeded; final answer includes fixture evidence and the public documentation URL. Search remains a local SearXNG-shaped fixture. |
 
 The real-model check uses a private temporary copy of existing host auth, a
 temporary agent directory and `--no-session`, with only these two tools active.
@@ -39,6 +44,19 @@ Its search source is a deterministic HTTP server implementing SearXNG's JSON
 shape. This verifies agent routing, API shape, tool-result ingestion and public
 fetch behavior. It does **not** verify a real SearXNG engine deployment or an
 external search provider's ranking.
+
+The Python 3.13 follow-up uses extension implementation commit
+`d03ca452b0bc4259b77a86aac021b7aa39d004a8` and the same Aelix revision as the
+3.11/3.12 checks. The user's Aelix main had advanced to
+`61f03b6718211c5e3ec81617374ff736881dd999`, so the original host revision was
+extracted with `git archive` into an isolated snapshot rather than changing the
+existing checkout. The extension's primary `.venv` was also preserved.
+
+Python 3.13 evidence is saved under `.devstate/python313-*` and its environment
+under `.devstate/python313/`. JUnit counts explicitly confirm that the actual
+host integration tests ran rather than being skipped.
+The additional real-model run is recorded in `.devstate/model-e2e-python313/`;
+its stderr contained no extension loading or manifest degradation warning.
 
 ## Review and repaired findings
 
@@ -70,7 +88,8 @@ production resolver tests. No production private-fetch exception was added.
 - **Real self-hosted SearXNG engines:** local HTTP/API-shape coverage only.
 - **GitHub Actions:** a pinned-host CI matrix for Python 3.11/3.12/3.13 is
   committed as configuration; no remote workflow has run for this repository.
-  Python 3.13 and Linux are not included in the executed local evidence above.
+  Linux is not included in the executed local evidence above; all three Python
+  versions have now been exercised locally on macOS.
 - **Interactive TUI:** no custom renderer or widget was added. Slash-command
   registration and handler behavior were checked through the actual host API,
   without an interactive TUI session.

@@ -22,6 +22,12 @@ Compatibility was checked against Aelix source at the revision recorded in
 
 ## Configure search
 
+These are search-service API keys issued by Brave, Tavily or Exa. Configure
+the key for the provider you use. They are separate from Aelix's conversational
+model credentials; this extension does not reuse model API keys or OAuth logins
+for these search endpoints. Self-hosted SearXNG needs its endpoint URL instead,
+and public-page `web_fetch` needs no search API key.
+
 Export a provider key in the shell that starts Aelix:
 
 ```bash
