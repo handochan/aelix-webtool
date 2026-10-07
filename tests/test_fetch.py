@@ -58,7 +58,7 @@ async def test_offsets_hashes_and_more_text_are_explicit():
     assert second["offset"] == 100
     assert first["content_hash"] == second["content_hash"]
     assert first["source_id"] == second["source_id"]
-    assert "may have changed" in first["text"]
+    assert "web_read" in first["text"] and second["cached"] is True
     with pytest.raises(WebToolError, match="beyond"):
         await service.fetch(FetchRequest("https://example.com/page", offset=90000))
 
