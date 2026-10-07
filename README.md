@@ -6,20 +6,29 @@ batch queries/URLs, stronger document extraction and explicitly configured resil
 Source: [handochan/aelix-webtool](https://github.com/handochan/aelix-webtool).
 The [official catalog](https://handochan.github.io/aelix-marketplace/catalog.json)
 is the authority for the published installation source; see
-[registration results](docs/registration-results.md) and
+[v0.2 registration results](docs/registration-v0.2-results.md) and
 [registration](docs/registration.md) for the published record and procedure.
 
 ## Install into Aelix
 
-The published catalog currently pins v0.1.0. The v0.2 changes are reviewed in
-the [core improvement issue](https://github.com/handochan/aelix-webtool/issues/1)
-before the catalog source is updated. Build this checkout to test the new tools.
+The published catalog pins v0.2.0 to the reviewed merge of
+[source PR #8](https://github.com/handochan/aelix-webtool/pull/8), published through
+[catalog PR #6](https://github.com/handochan/aelix-marketplace/pull/6).
 
 With Aelix already installed, install from the official catalog:
 
 ```bash
 aelix extension discover --refresh
 aelix extension discover install aelix-webtool
+aelix extension verify aelix-webtool
+```
+
+For an existing v0.1 git installation, review the new source shown by the
+installer and explicitly accept the new commit pin:
+
+```bash
+aelix extension discover --refresh
+aelix extension discover install aelix-webtool --repin
 aelix extension verify aelix-webtool
 ```
 
@@ -38,7 +47,7 @@ aelix extension verify aelix-webtool
 Aelix supplies the host
 APIs; this wheel deliberately does not depend on beta placeholder PyPI packages.
 Compatibility was checked against Aelix source at the revision recorded in
-[verification](docs/verification.md), rather than inferred from the version name.
+[v0.2 verification](docs/verification-v0.2.md), rather than inferred from the version name.
 
 ## Configure search
 
@@ -114,7 +123,7 @@ be private; search API redirects remain refused. This does not grant the fetch
 tool access to private networks. The default when nothing is configured is the
 public DuckDuckGo Lite endpoint. `.env` files are **not** automatically read.
 
-`AELIX_WEB_OFFLINE=1` disables both tools. Aelix's general `--offline` controls
+`AELIX_WEB_OFFLINE=1` disables search and fetch. Aelix's general `--offline` controls
 its own maintenance/catalog traffic; it does not sandbox extensions or their
 HTTP calls. Use this extension's setting to disable its network tools.
 

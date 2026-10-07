@@ -1,7 +1,8 @@
-# Official catalog registration results
+# Initial v0.1 catalog registration results
 
 Date: 2026-10-08 (Asia/Seoul)
-Status: Registered, deployed and installed from the published catalog.
+Status: v0.1 registration completed. The current published v0.2 entry and upgrade
+evidence are recorded in [v0.2 registration results](registration-v0.2-results.md).
 
 ## Published source and catalog
 

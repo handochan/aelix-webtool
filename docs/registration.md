@@ -5,10 +5,13 @@ The current listing and pinned installation source are recorded in the
 [published official catalog](https://handochan.github.io/aelix-marketplace/catalog.json).
 Catalog changes go through a reviewed PR and the checks described below.
 
-Registered on 2026-10-08 (Asia/Seoul) through
+Initially registered on 2026-10-08 (Asia/Seoul) through
 [marketplace PR #4](https://github.com/handochan/aelix-marketplace/pull/4).
-See [registration results](registration-results.md) for the source pin, actual
-GitHub CI, deployment and published-catalog installation evidence.
+The published v0.2 update is
+[marketplace PR #6](https://github.com/handochan/aelix-marketplace/pull/6).
+See [v0.2 registration results](registration-v0.2-results.md) for the current
+source pin, actual GitHub CI, deployment, installation and upgrade evidence;
+[initial registration results](registration-results.md) preserve the v0.1 record.
 
 The official catalog is [handochan/aelix-marketplace](https://github.com/handochan/aelix-marketplace).
 Its public listing gate requires an actual reachable git/PyPI source, an
@@ -45,19 +48,15 @@ SearXNG test are separate evidence. A real-model tool call is yet another gate.
 1. Review the source, limitations and recorded verification. Publish the
    repository as `handochan/aelix-webtool` with its Apache-2.0 license. Preserve
    this implementation's documentation and tests in the published revision.
-2. Choose the full 40-hex revision from that reachable repository. Generate a
-   candidate using the **latest** marketplace catalog as the base:
-
-   ```bash
-   python scripts/catalog_entry.py --revision <published-40-hex-sha> \
-     --base /path/to/aelix-marketplace/catalog.json \
-     --output /path/to/catalog-candidate.json
-   ```
-
-   The script does not mutate the marketplace checkout. Review the candidate
-   before replacing its catalog. There are no placeholder package sources and
-   no display-only SHA256 field presented as enforced integrity.
-3. Create a marketplace branch containing the one new entry and updated date.
+2. Choose the full 40-hex revision from that reachable repository. Use the
+   **latest** marketplace catalog as the base and update the existing
+   `aelix-webtool` entry's source, actual package version and description.
+   Preserve all other entries. `scripts/catalog_entry.py` is the initial v0.1
+   listing helper; it deliberately refuses an existing entry and is not a
+   release-update generator. Review the candidate before replacing its catalog.
+   There are no placeholder package sources or display-only SHA256 fields
+   presented as enforced integrity.
+3. Create a marketplace branch containing the one changed entry and updated date.
    Run its actual `scripts/validate_catalog.py` and
    `scripts/verify_candidates.py` against the base catalog and current host.
    A local wheel check cannot substitute for installing the public git source.
