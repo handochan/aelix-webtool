@@ -5,6 +5,11 @@ The current listing and pinned installation source are recorded in the
 [published official catalog](https://handochan.github.io/aelix-marketplace/catalog.json).
 Catalog changes go through a reviewed PR and the checks described below.
 
+Registered on 2026-10-08 (Asia/Seoul) through
+[marketplace PR #4](https://github.com/handochan/aelix-marketplace/pull/4).
+See [registration results](registration-results.md) for the source pin, actual
+GitHub CI, deployment and published-catalog installation evidence.
+
 The official catalog is [handochan/aelix-marketplace](https://github.com/handochan/aelix-marketplace).
 Its public listing gate requires an actual reachable git/PyPI source, an
 `aelix.extensions` entry point and an installed manifest verdict of `BOUND`.

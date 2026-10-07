@@ -4,11 +4,24 @@ An Aelix extension providing `web_search`, `web_fetch` and `/web`.
 Source: [handochan/aelix-webtool](https://github.com/handochan/aelix-webtool).
 The [official catalog](https://handochan.github.io/aelix-marketplace/catalog.json)
 is the authority for the published installation source; see
-[registration](docs/registration.md) for its review and verification procedure.
+[registration results](docs/registration-results.md) and
+[registration](docs/registration.md) for the published record and procedure.
 
 ## Install into Aelix
 
-With Aelix already installed, build and install the extension:
+With Aelix already installed, install from the official catalog:
+
+```bash
+aelix extension discover --refresh
+aelix extension discover install aelix-webtool
+aelix extension verify aelix-webtool
+```
+
+Restart Aelix (or `/reload`) after installing. `/web` shows which search
+providers can be selected without exposing credentials. With no provider
+settings, search uses keyless DuckDuckGo Lite.
+
+To build and install a wheel from a source checkout:
 
 ```bash
 uv build --wheel
@@ -16,8 +29,7 @@ aelix extension install /absolute/path/to/aelix_webtool-0.1.0-py3-none-any.whl
 aelix extension verify aelix-webtool
 ```
 
-Restart Aelix (or `/reload`) after installing. `/web` shows which search
-providers are available without exposing credentials. Aelix supplies the host
+Aelix supplies the host
 APIs; this wheel deliberately does not depend on beta placeholder PyPI packages.
 Compatibility was checked against Aelix source at the revision recorded in
 [verification](docs/verification.md), rather than inferred from the version name.
