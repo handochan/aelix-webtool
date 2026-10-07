@@ -58,8 +58,11 @@ logs/JUnit and raw model evidence are excluded from artifacts and commits.
 - Actual Brave/Tavily/Exa keyed requests and a deployed SearXNG engine remain
   unrun without their credentials/service. Their request and resilience behavior
   is covered by deterministic/local-HTTP tests, not a ranking benchmark.
-- v0.2 is a reviewable source change. The published official catalog still pins
-  v0.1.0 until the source and a subsequent catalog update are reviewed.
+- Source [PR #8](https://github.com/handochan/aelix-webtool/pull/8) and
+  [catalog PR #6](https://github.com/handochan/aelix-marketplace/pull/6) are merged.
+  The published official catalog pins v0.2.0. Post-merge current-host testing,
+  deployment, published-source installation and the v0.1 upgrade are recorded
+  in [v0.2 registration results](registration-v0.2-results.md).
 - Interactive TUI rendering has not been exercised; no custom renderer/widget
   is added. Actual host registration, lifecycle resets and tool dispatch are
   verified separately from real-model behavior.
