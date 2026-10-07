@@ -94,6 +94,16 @@ async def run(args: argparse.Namespace) -> None:
                     "do not retry or use another provider."
                 )
             )
+            if args.investigate:
+                prompt = prompt.replace(
+                    "use only web_search and web_fetch", "use only the enabled web tools"
+                )
+                prompt += (
+                    " After fetching, call web_find with its snapshot_id and query 'asyncio'. "
+                    "Then call web_read on the same snapshot_id, using a returned match's start "
+                    "offset and max_chars=600. Do not fetch again. Use this stored passage "
+                    "as evidence for your final fact and cite its URL."
+                )
             command = [
                 str(args.aelix.resolve()),
                 "--provider",
@@ -108,7 +118,9 @@ async def run(args: argparse.Namespace) -> None:
                 "--no-context-files",
                 "--offline",
                 "--tools",
-                "web_search,web_fetch",
+                "web_search,web_fetch,web_read,web_find"
+                if args.investigate
+                else "web_search,web_fetch",
                 "-p",
                 prompt,
             ]
@@ -135,6 +147,11 @@ async def run(args: argparse.Namespace) -> None:
                     events.append(json.loads(line))
             tool_ends = [e for e in events if e.get("type") == "tool_execution_end"]
             executed = {e.get("toolName") or e.get("tool_name") for e in tool_ends}
+            required = (
+                {"web_search", "web_fetch", "web_read", "web_find"}
+                if args.investigate
+                else {"web_search", "web_fetch"}
+            )
             assistant_texts = [
                 "\n".join(
                     c.get("text", "")
@@ -152,6 +169,7 @@ async def run(args: argparse.Namespace) -> None:
                 "model": args.model,
                 "search_provider": args.search_provider,
                 "search_source": "local fixture" if use_fixture else "live DuckDuckGo Lite",
+                "investigation_tools": args.investigate,
                 "search_fixture_requests": hits,
                 "executed_tools": sorted(executed),
                 "tool_end_events": tool_ends,
@@ -167,11 +185,7 @@ async def run(args: argparse.Namespace) -> None:
                     indent=2,
                 )
             )
-            if (
-                process.returncode != 0
-                or not {"web_search", "web_fetch"} <= executed
-                or (use_fixture and not hits)
-            ):
+            if process.returncode != 0 or not required <= executed or (use_fixture and not hits):
                 raise SystemExit(
                     "FAIL: inspect saved E2E events; both tools were not successfully dispatched."
                 )
@@ -186,6 +200,15 @@ async def run(args: argparse.Namespace) -> None:
                 use_fixture and "AELIX_WEBTOOL_E2E_SOURCE_20261008" not in final_answer
             ) or "https://docs.python.org/3/library/asyncio.html" not in final_answer:
                 raise SystemExit("FAIL: final answer omitted the required evidence or source URL.")
+            if args.investigate:
+                stored = [
+                    e["result"]["details"]
+                    for e in tool_ends
+                    if e.get("tool_name") in {"web_fetch", "web_read", "web_find"}
+                ]
+                assert len({r["snapshot_id"] for r in stored}) == 1
+                assert len({r["content_hash"] for r in stored}) == 1
+                assert any(r.get("total_matches", 0) > 0 for r in stored)
             print(f"PASS: real-model search -> fetch -> response ({summary['search_source']})")
     finally:
         if runner is not None:
@@ -197,6 +220,11 @@ def main() -> None:
     parser.add_argument("--aelix", type=Path, default=ROOT / ".venv/bin/aelix")
     parser.add_argument("--provider", required=True)
     parser.add_argument("--model", required=True)
+    parser.add_argument(
+        "--investigate",
+        action="store_true",
+        help="Require web_read/web_find from the same snapshot and content hash",
+    )
     parser.add_argument("--search-provider", choices=["searxng", "duckduckgo"], default="searxng")
     parser.add_argument("--auth-file", type=Path, default=Path.home() / ".aelix/agent/auth.json")
     parser.add_argument("--output", type=Path, default=ROOT / ".devstate/model-e2e")

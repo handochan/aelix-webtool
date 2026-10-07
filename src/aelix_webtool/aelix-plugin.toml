@@ -1,7 +1,7 @@
 [plugin]
 id = "aelix-webtool"
 name = "Aelix Web Tools"
-version = "0.1.0"
+version = "0.2.0"
 description = "Web search with explicit provider routing and bounded public-page reading."
 authors = ["Aelix Contributors"]
 repository = "https://github.com/handochan/aelix-webtool"
@@ -35,3 +35,11 @@ description = "Read a public HTTP(S) page as bounded text or Markdown."
 [[contributes.commands]]
 id = "web"
 description = "Show search-provider availability and web-tool configuration."
+
+[[contributes.tools]]
+name = "web_read"
+description = "Read a bounded passage from a stored session snapshot without network I/O."
+
+[[contributes.tools]]
+name = "web_find"
+description = "Find literal text and exact source positions in a stored snapshot."

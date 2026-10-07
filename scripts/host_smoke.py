@@ -25,7 +25,9 @@ async def main() -> None:
         )
         assert not loaded.errors, [(e.path, e.error) for e in loaded.errors]
         extensions = [
-            ext for ext in loaded.extensions if set(ext.tools) == {"web_search", "web_fetch"}
+            ext
+            for ext in loaded.extensions
+            if set(ext.tools) == {"web_search", "web_fetch", "web_read", "web_find"}
         ]
         assert len(extensions) == 1, "Installed wheel was not automatically loaded"
         ext = extensions[0]
