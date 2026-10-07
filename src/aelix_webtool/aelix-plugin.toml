@@ -1,0 +1,37 @@
+[plugin]
+id = "aelix-webtool"
+name = "Aelix Web Tools"
+version = "0.1.0"
+description = "Web search with explicit provider routing and bounded public-page reading."
+authors = ["Aelix Contributors"]
+repository = "https://github.com/handochan/aelix-webtool"
+license = "Apache-2.0"
+
+[plugin.api]
+level = 1
+min_level = 1
+
+[plugin.entry]
+python = "aelix_webtool:setup"
+
+[capabilities]
+net = true
+shell_exec = false
+fs_write = false
+fs_read_user = false
+ui_tui_trusted = false
+
+[activation]
+on_startup_finished = true
+
+[[contributes.tools]]
+name = "web_search"
+description = "Search the web and return bounded source snippets with URLs."
+
+[[contributes.tools]]
+name = "web_fetch"
+description = "Read a public HTTP(S) page as bounded text or Markdown."
+
+[[contributes.commands]]
+id = "web"
+description = "Show search-provider availability and web-tool configuration."

@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aelix-webtool"
+version = "0.1.0"
+description = "Provider-independent web search and public-page reading for Aelix."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Aelix Contributors" }]
+dependencies = ["aiohttp>=3.12,<4", "beautifulsoup4>=4.12,<5", "markdownify>=1.1,<2", "yarl>=1.18,<2"]
+
+# Aelix is supplied by the host. During beta its PyPI distributions are
+# placeholders, so a dependency on them would break extension installation.
+[project.entry-points."aelix.extensions"]
+aelix-webtool = "aelix_webtool:setup"
+
+[project.scripts]
+aelix-webtool = "aelix_webtool.cli:main"
+
+[project.urls]
+Repository = "https://github.com/handochan/aelix-webtool"
+Issues = "https://github.com/handochan/aelix-webtool/issues"
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "pytest-asyncio>=0.25,<2", "ruff>=0.12", "pyright>=1.1", "jsonschema>=4,<5"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/aelix_webtool"]
+exclude = ["**/__pycache__", "**/*.pyc", ".env*", ".devstate", ".omc", ".claude"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/tests", "/docs", "/scripts", "/README.md", "/pyproject.toml", "/LICENSE"]
+exclude = ["**/__pycache__", "**/*.pyc", ".env*", ".devstate", ".omc", ".claude"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.pyright]
+include = ["src"]
+typeCheckingMode = "standard"
