@@ -3,6 +3,8 @@
 An Aelix extension providing `web_search`, `web_fetch`, `web_read`, `web_find` and `/web`.
 The v0.2 implementation adds stable session snapshots, literal passage lookup,
 batch queries/URLs, stronger document extraction and explicitly configured resilience.
+The [measured interface comparison](docs/tool-interface-comparison-results.md)
+records why the public API retains four tools rather than combining read/find.
 Source: [handochan/aelix-webtool](https://github.com/handochan/aelix-webtool).
 The [official catalog](https://handochan.github.io/aelix-marketplace/catalog.json)
 is the authority for the published installation source; see
